@@ -39,7 +39,7 @@ Build script
 ------------
 `build-facets` is meant to be build-system agnostic, and is more about providing paths and configuration to an existing build script.
 ```javascript
-var facets = require('build-facets')(process.cwd());
+var facets = require('build-facets')(__dirname);
 facets.loadRules('./facet-rules.js');
 // Looks for environment variables defining the variant.
 facets.loadVariantFromEnv();
@@ -131,27 +131,35 @@ module.exports = {
 
 Loading rules and configuration via package.json
 -----------------------------------------
-To allow interoperability with other tools using the same rules (e.g. [overidify](https://github.com/jhugman/overidify))
+To allow interoperability with other tools using the same rules (e.g. [overidify](https://github.com/jhugman/overidify)), you can load the rules 
+from a property in `package.json`.
+
 ```javascript
-var facets = require('build-facets')(process.cwd());
+// Get facets for this directory.
+var facets = require('build-facets')(__dirname);
 
 // Looks in package.json for a property called 'overidify'.
 // If it's a string treat it like a module name to be required.
 // If it's an object, use that.
+// Otherwise, use defaults.
 facets.loadRulesFromPackageJson('overidify');
 
+// Load the buildConfig,
+var buildConfig = facets
+    // Looks in package.json for a property called 'platforms'.
+    // Resolve as above. Normalize the resulting object.
+    .loadFromPackageJson('platforms')
+    // Look for the module at buildConfig.get('local').
+    // Normalize the exports, 
+    // and return a config with the two objects merged.
+    .mergeFileAt('local');
 
-// Looks in package.json for a property called 'platforms'.
-// Looks in the resulting object for a property called 'local'.
-// Uses that as a module name to require. 
-var buildConfig = facets.loadFromPackageJson('platforms').mergeFileAt('local');
-
-
-facets.setVariant({
+// You can also set the variant diectly.
+facets.buildVariant = {
   platform: 'ios',
   target: 'cordova',
   flavor: 'production'
-});
+};
 ```
 
 Comparision with Android's `res` system
@@ -189,3 +197,4 @@ The app code does not need to know anything of neither the device state nor the 
  - the complete set of available modifiers, and how they relate is defined by the Android SDK. `build-facets` expects them to be defined, either by you or a simple default.
  - the res directory works with files and directories. `build-facets` work with javascript key-value objects.
  - the device state is used at runtime. `build-facets` use environment variables at build time. The precise combinations is called the build variant.
+ - the java code contains a simple reference. `build-facets` allows build scripts to only have simple key names, without worrying about build variants.
