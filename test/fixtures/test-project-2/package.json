@@ -1,0 +1,9 @@
+{
+  "name": "test-project2",
+  "version": "0.0.1",
+  "main": "./index.js",
+
+  "facet-rules": "facet-rules",
+
+  "build-config": "build-config"
+}

@@ -1,0 +1,33 @@
+{
+  "name": "build-facets",
+  "version": "0.0.0",
+  "description": "Android resource selection for javascript build configuration",
+  "main": "lib/api.js",
+  "scripts": {
+    "test": "tap test/test-*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jhugman/build-facets.git"
+  },
+  "keywords": [
+    "build",
+    "configuration",
+    "variants",
+    "cross-platform"
+  ],
+  "author": "@jhugman",
+  "license": "Apache v2",
+  "bugs": {
+    "url": "https://github.com/jhugman/build-facets/issues"
+  },
+  "homepage": "https://github.com/jhugman/build-facets",
+  "dependencies": {
+    "lodash": "~2.4.1",
+    "strings-with-facets": "git://github.com/jhugman/strings-with-facets",
+    "pkginfo": "~0.3.0"
+  },
+  "devDependencies": {
+    "tap": "~0.4.13"
+  }
+}
