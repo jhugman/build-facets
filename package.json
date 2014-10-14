@@ -25,7 +25,8 @@
   "dependencies": {
     "lodash": "~2.4.1",
     "strings-with-facets": "git://github.com/jhugman/strings-with-facets",
-    "overidify-defaults": "git://github.com/jhugman/overidify-defaults"
+    "overidify-defaults": "git://github.com/jhugman/overidify-defaults",
+    "env-opt": "git://github.com/jhugman/node-env-opt"
   },
   "devDependencies": {
     "tap": "~0.4.13"
