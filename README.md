@@ -19,6 +19,16 @@ Example
 -------
 We have a webapp which we can run in a browser or as a cordova app.
 
+For our webapp project, we will considering a minimal project structure:
+```
+my_webapp
+|- project.json
+|- build-config.js
+|- build-config-local.js
+|- (facet-rules.js)
+|- Gruntfile.js
+```
+
 Cordova itself has different options.
 
 Our build script needs to know where to put the assembled project, i.e. `dist`.
@@ -31,17 +41,10 @@ Using `build-facets` we can write a build script that can be parameterized and f
 
 In this example, the build script may have the lines:
 ```javascript
-var dist = config.resolve('project-dir', 'js-dist');
+var dist = config.resolve('project-dir', 'dist-relative');
 var runCommand = config.get('run');
 ```
-For our webapp project, we will considering a minimal project structure:
-```
-my_webapp
-|- project.json
-|- build-config.js
-|- local.js
-|- (facet-rules.js)
-```
+
 Loading the configuration
 -------------------------
 We can load the build configuration with the following incantations.
@@ -62,7 +65,7 @@ var config =
      // Load configuration from the build-config module,
      .loadConfiguration('./build-config.js')
      // and merge it with a local.js module.
-     .mergeWith('./local.js');
+     .mergeWith('./build-config-local.js');
 ```
 
 Configuration comes from two places:
@@ -99,13 +102,13 @@ Using the configuration
 ------------
 Once the configuration has been loaded, we can use it to look up values with simple keys.
 
-The keys are completely project dependent (i.e. up to us to define and use). In this case, we are using `project-dir`, `js-dist` and `run`. These will be defined in the build-configuration, below.
+The keys are completely project dependent (i.e. up to us to define and use). In this case, we are using `project-dir`, `dist-relative` and `run`. These will be defined in the build-configuration, below.
 
 The options from the variant is used to choose exactly which values are returned.
 
 ```javascript
-// Calling path.resolve on the values for project-dir and js-dist
-var dist = config.resolve('project-dir', 'js-dist');
+// Calling path.resolve on the values for project-dir and dist-relative
+var dist = config.resolve('project-dir', 'dist-relative');
                                      // /Users/me/workspaces/my-cordova-project/www
 // in a child_process, 
 // cd into the project-dir, 
@@ -135,7 +138,7 @@ module.exports = {
   'project-dir': {
     'web': '.'
   },
-  'js-dist': {
+  'dist-relative': {
     'web': 'dist',
     'cordova': 'www'
   },
@@ -147,7 +150,7 @@ module.exports = {
 };
 ```
 
-The second is at `local.js`. This is for paths outside this repository, and so shouldn't be checked in to source control:
+The second is at `build-config-local.js`. This is for paths outside this repository, and so shouldn't be checked in to source control:
 ```javascript
 module.exports = {
   'project-dir': {
@@ -157,7 +160,7 @@ module.exports = {
 ```
 
 The keys in these objects are made up of:
- - The keys asked for in the build-script, i.e. `project-dir`, `js-dist` or `run`
+ - The keys asked for in the build-script, i.e. `project-dir`, `dist-relative` or `run`
  - One of the modifiers used to define `facet-rules.js`.
  - A build-script key, combined with zero or more modifier suffixes.
 
@@ -165,8 +168,8 @@ Further use
 ===========
 
 
-Build Configuration Normalization
----------------------------------
+Flexible configuration styles
+-----------------------------
 When configuration objects are loaded, they are flattened into a simple object; the keys from nested objects have the key path to the object appended.
 
 This is so:
