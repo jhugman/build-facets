@@ -15,62 +15,183 @@ All the fiddly, bespoke conditional logic to parameterize your builds is replace
 
 This allows for manageable, re-usable build scripts that can accomodate changes in build needs as the project grows.
 
-Example
--------
-We have a webapp which we can run in a browser or as a cordova app.
+Minimal Example
+---------------
+We have a webapp which we can run in a browser, and we want to deploy it as a cordova app.
 
 For our webapp project, we will considering a minimal project structure:
 ```
 my_webapp
 |- project.json
+|- lib/
+|- test/
+|- resources/
+|- Gruntfile.js
+```
+We happen to be using `grunt` here, but this works equally well with `gulp`.
+
+In our Gruntfile, we may start by providing other tasks a directory where to put final build artifacts: 
+
+```javascript
+module.exports = function (grunt) {
+  grunt.initConfig({
+    dist: './build',
+    // ...
+```
+Other tasks can then reference this path as `<%= dist %>`.
+
+We might want to move this and other paths this into its own file, which is loaded in our build script:
+
+```javascript
+var conf = require('build-facets')(__dirname)
+            .loadConfiguration('./build-config.js');
+module.exports = function (grunt) {
+  grunt.initConfig({
+    dist: conf.get('dist-relative'),
+    // ...
+```
+
+Where `build-config.js` is a module in the same directory:
+```javascript
+module.exports = {
+  'dist-relative': './build'
+};
+```
+
+Now, `dist-relative` is likely to change now we want to build for cordova.
+
+For one reason or another (perhaps fictitious), this hasn't been a cordova app right from the start, so our cordova project is in a sub-directory:
+
+```
+my_webapp
+|- project.json
+|- lib/
+|- test/
+|- resources/
+|- cordova
+   |- www/
 |- build-config.js
-|- build-config-local.js
-|- (facet-rules.js)
 |- Gruntfile.js
 ```
 
-Cordova itself has different options.
+So, now we should probably like to say in `build-config.js`:
 
-Our build script needs to know where to put the assembled project, i.e. `dist`.
-
-We might also want to build the cordova app for a given platform, perhaps to run it.
-
-For that, we will need to know how to get cordova to build and then to deploy and run the resulting binary.
-
-Using `build-facets` we can write a build script that can be parameterized and fill in the blanks from a declarative configuration file.
-
-In this example, the build script may have the lines:
 ```javascript
-var dist = config.resolve('project-dir', 'dist-relative');
-var runCommand = config.get('run');
+module.exports = {
+  'dist-relative': './build',
+  'dist-relative.cordova': './cordova/www'
+};
 ```
 
-Loading the configuration
--------------------------
-We can load the build configuration with the following incantations.
-```javascript
-var facets = 
-    require('build-facets')(__dirname)
-     // Optionally, load the rules from the build-facets.js 
-     // module, defined above, in the package directory.
-     // .loadRules('./facet-rules.js');
-     
-     // Then look for environment variables 
-     // defining the variant.
-     .loadVariantFromEnv();
+Without any further changes to our `Gruntfile.js` we are now able to change which `dist-relative` to use, by invoking `grunt` slightly differently:
 
-// Now load the config itself.
-var config =
-    facets
-     // Load configuration from the build-config module,
-     .loadConfiguration('./build-config.js')
-     // and merge it with a local.js module.
-     .mergeWith('./build-config-local.js');
+```
+TARGET=cordova grunt
 ```
 
-Configuration comes from two places:
- - the facet rules (defaults are available).
- - the build configurations, which use the rules
+`grunt` will now use `./cordova/www` instead of `./build`.
+
+A less minimal example
+----------------------
+The `cordova` project directory may not be in this `my_webapp` project directory.
+
+Cordova itself has different options. Perhaps as part of `grunt watch` we'd like to deploy new builds to our development device.
+
+```
+my_webapp
+|- project.json
+|- build-config.js
+|- build-config-local.js
+|- Gruntfile.js
+```
+
+For the first, we need a `project-dir` to specify where the root of the cordova project is, as well as the existing `dist-relative`.
+
+But if `project-dir` is different on my dev machine, then it'll likely be different on another dev's machine or the build server.
+
+So it'd be good to put all these paths local to the machine in a separate file. We'll call the new file `build-config-local.js`:
+```javascript
+module.exports = {
+  'project-dir.cordova': '/Users/me/workspaces/my-cordova-project'
+};
+```
+
+For our webapp, `project-dir` is the current directory, so we can add this to our main `build-config.js` file.
+```javascript
+module.exports = {
+  'project-dir': '.',
+
+  'dist-relative': './build',
+  'dist-relative.cordova': './www'
+};
+```
+
+We need to change the beginning of our build script:
+
+```javascript
+var conf = require('build-facets')(__dirname)
+            .loadConfiguration('./build-config.js')
+            .mergeWith('./build-config-local.js');
+module.exports = function (grunt) {
+  grunt.initConfig({
+    dist: conf.resolve('project-dir', 'dist-relative'),
+    // ...
+```
+
+Now, when we call
+```
+$ TARGET=cordova grunt
+```
+
+`grunt` will use `/Users/me/workspaces/my-cordova-project/www` for `dist`.
+
+When we call grunt on its own, 
+```
+$ grunt
+```
+`grunt` will use `./build` for `dist`.
+
+For the second, we're going to add a task to our grunt file:
+
+```javascript
+// ...
+grunt.initConfig({
+  // ...
+  shell: {
+    runOnDevice: {
+      command: conf.get('run-command'),
+        options: {
+          execOptions: {
+            cwd: conf.resolve('project-dir')
+          }
+        }
+    }
+  },
+  // ...
+});
+```
+And add the necessary run-commands in `build-config.js`
+
+```javascript
+module.exports = {
+  'project-dir': '.',
+
+  'dist-relative': './build',
+  'dist-relative.cordova': './www',
+
+  'run-comand': 'echo "localhost already running"'
+  'run-command.ios': 'cordova emulate ios',
+  'run-command.android': 'cordova run android'
+  }
+};
+```
+
+Now we can run:
+
+```
+$ TARGET=cordova PLATFORM=android grunt build shell:runOnDevice
+```
+to build our webapp for the cordova project and have cordova build and deploy it to a connected Android device.
 
 Facet Rules
 -----------
@@ -98,6 +219,29 @@ e.g. build script is a `Gruntfile.js`. Use the above rule to build our app for C
 $ PLATFORM=ios TARGET=cordova grunt
 ```
 
+Each rule defines a list of modifiers which change which value is returned.
+
+e.g. to define the value of `config.get('a')`, a config file might contain:
+```javascript
+module.exports = {
+  // ...
+  'a': 1,
+  'a.dev': 2,
+  'a.ios.stage': 3,
+  'a.ios': 4,
+  'a.ios.production': 5,
+  // ...
+};
+```
+For the variant `platform=ios, flavor=production`:
+ - the key `a.ios` matches only the `platform` rule
+ - the key `a.ios.stage` contradicts the `flavor` rule and is not chosen
+ - the key `a.ios.production` matches both `platform` and `flavor` rules.
+
+The more specific the match the better.
+
+There are other rule types which describe fallbacks and synonyms.
+
 Using the configuration
 ------------
 Once the configuration has been loaded, we can use it to look up values with simple keys.
@@ -114,7 +258,7 @@ var dist = config.resolve('project-dir', 'dist-relative');
 // cd into the project-dir, 
 // then call the run command.
 var dir = config.get('project-dir'), // /Users/me/workspaces/my-cordova-project
-    runCommand = config.get('run'),  // cordova emulate ios
+    runCommand = config.get('run-command'),  // cordova emulate ios
     cmd = 'cd ' + dir +' && ' + runCommand;
     
  
@@ -125,6 +269,46 @@ The comments showing values are for the build variant `platform=ios` and `target
 
 None of the conditional logic for working out how to deal with the specific variant is present.
 
+
+Loading the configuration
+-------------------------
+We can minimally, we can load the build configuration with the following incantations.
+
+```javascript
+// Now load the config itself.
+var config =
+    require('build-facets')(__dirname)
+     // Load configuration from the build-config module,
+     .loadConfiguration('./build-config.js')
+     // and merge it with a local.js module.
+     .mergeWith('./build-config-local.js');
+```
+
+
+```javascript
+var facets = 
+    require('build-facets')(__dirname)
+     
+     // Optionally, load the rules from the build-facets.js 
+     // module, defined above, in the package directory.
+     .loadRules('./facet-rules.js');
+     
+     // Then look for environment variables 
+     // defining the variant.
+     .loadVariantFromEnv();
+
+// Now load the config itself.
+var config =
+    facets
+     // Load configuration from the build-config module,
+     .loadConfiguration('./build-config.js')
+     // and merge it with a local.js module.
+     .mergeWith('./build-config-local.js');
+```
+
+Configuration comes from two places:
+ - the facet rules (defaults are available).
+ - the build configurations, which use the rules
 
 Build Configuration
 -------------------
@@ -139,10 +323,10 @@ module.exports = {
     'web': '.'
   },
   'dist-relative': {
-    'web': 'dist',
+    'web': 'build',
     'cordova': 'www'
   },
-  'run': {
+  'run-command': {
     'ios': 'cordova emulate ios',
     'android': 'cordova run android'
     '': 'echo \"No need for run task\" && exit 1'
